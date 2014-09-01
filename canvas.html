@@ -1,0 +1,108 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+	<script type="text/javascript">
+
+	window.onload = function () {
+
+		var dps = []; // dataPoints
+
+		var chart = new CanvasJS.Chart("chartContainer",{
+			title :{
+				text: "EEG Data"
+			},			
+			data: [{
+				type: "line",
+				dataPoints: dps 
+			}],
+			exportEnabled : true,
+			exportFileName : "EEGPlot"
+		});
+
+		var xVal = 0;
+		var yVal = 100;	
+		var updateInterval = 5;
+		var dataLength = 40; // number of dataPoints visible at any point
+
+		collectData = true;
+
+		var updateChart = function (dataArray) {
+
+			// when eeg is paused
+			if(!collectData || !dataArray)
+			{
+				return;
+			}
+
+			for(i = 0; i < dataArray.length; i++)
+			{
+
+				yVal = parseInt(dataArray[i]);
+				if(!yVal)
+				{
+					continue;
+				}
+				console.log(yVal);
+				dps.push({
+					x: xVal,
+					y: yVal
+				});
+				xVal++;
+			}
+
+			if (dps.length > dataLength)
+			{
+				dps.shift();				
+			}
+			
+			chart.render();		
+		};
+
+		function startChart(){
+			// generates first set of dataPoints
+			updateChart(dataLength); 
+			// update chart after specified time. 
+			var process = setInterval(function(){updateChart()}, updateInterval); 
+			var paused = false;
+
+			// pause button
+			var butts = document.getElementById("pausebutton");
+
+			butts.onclick = function(){ 
+
+				collectData = !collectData;
+				console.log("collectData " + collectData);
+			};
+		}
+	
+
+	
+		startChart();
+
+		var socket = new io();
+		j = 0;
+		socket.on('connection', function(){console.log("Got connection")});
+		socket.on('data', function(data){
+			if(j != updateInterval)
+			{
+				j++;
+				return;
+			}
+			j = 0;
+			var dataArray = data.split('\n');
+			updateChart(dataArray);
+		});
+
+
+	}
+	</script>
+	<script type="text/javascript" src="./canvasjs/canvasjs.min.js"></script>
+	<script src="./socket.io.js"></script>
+</head>
+<body>
+	<div id="chartContainer" style="height: 300px; width:100%;">
+	</div>
+	<button id="pausebutton">Pause</button>
+</body>
+</html>
